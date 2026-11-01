@@ -113,6 +113,7 @@ plantuml docs/architecture.puml # generează .png/.svg lângă fișier
 
 ## Depanare
 
+- `make: pkg-config: No such file or directory` și `gst/gst.h: No such file or directory` → **nu sunt instalate dependențele de build**; rulează comanda `sudo apt install ...` din secțiunea „Cerințe” (Makefile-ul afișează acum automat acest mesaj dacă lipsesc). După instalare: `make && ./pc-cam-stream`.
 - `ERROR ... v4l2src` / permission denied pe `/dev/video0` → adaugă userul în grupul `video` (vezi Cerințe).
 - `x264enc not found` → `sudo apt install gstreamer1.0-plugins-ugly`.
 - Fără ecran (SSH/CI) → rulează cu `--test --sink=fakesink --frames=N`.
