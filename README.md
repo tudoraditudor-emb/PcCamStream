@@ -80,16 +80,17 @@ Ctrl+C oprește aplicația și afișează statistica (cadre procesate, timp, fps
 ├── Makefile               # build (make / make run / make test / make clean)
 ├── README.md
 ├── docs/
-│   └── architecture.puml # diagramă UML (componente + secvență + clase)
+│   ├── architecture.puml # sursă PlantUML (componente + secvență + clase)
+│   └── architecture.md   # aceleași diagrame în Mermaid (randate automat pe GitHub)
 └── src/
     └── main.c             # pipeline-urile GStreamer + inversia culorilor în C
 ```
 
 ## Arhitectură (UML)
 
-Diagramele PlantUML sunt în `docs/architecture.puml` — trei diagrame: **componente** (cele două pipeline-uri și legătura prin callback), **secvență** (pornire → ciclul unui cadru → oprire) și **clase** (structura `App` și funcțiile C).
+Diagramele UML sunt în `docs/` — trei diagrame: **componente/flux** (cele două pipeline-uri și legătura prin callback), **secvență** (pornire → ciclul unui cadru → oprire) și **clase** (structura `App` și funcțiile C). Varianta `architecture.md` e în Mermaid și se vede direct pe GitHub; varianta `architecture.puml` e sursa PlantUML.
 
-Randare:
+Randare locală a variantei PlantUML:
 
 ```sh
 sudo apt install plantuml        # sau pluginul PlantUML în VS Code, sau https://www.plantuml.com/plantuml
