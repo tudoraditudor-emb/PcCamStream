@@ -1,0 +1,182 @@
+@startuml PcCamStream_Componente
+title PcCamStream — diagrama de componente
+
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+
+package "Sistem fizic" {
+  [Camera laptop\n/dev/video0 (V4L2)\nformat default: MJPEG 1280x720@30] as cam
+  [Ecran\n(X11 / Wayland)] as screen
+}
+
+package "Aplicatie C — pc-cam-stream" {
+
+  component "App\nGMainLoop + statistici\n(cadre, fps)" as app
+
+  package "pipe_in : GstPipeline" {
+    component "v4l2src\n(device=/dev/video0)" as v4l2
+    component "decodebin\n(ex. jpegdec)" as dec
+    component "videoconvert" as vc1
+    component "videoscale\n+ caps WxH" as scale
+    component "capsfilter\nvideo/x-raw,format=RGB" as caps
+    component "videoflip\nmethod=horizontal-flip" as flip
+    component "appsink\nname=proc" as sink
+  }
+
+  package "pipe_out : GstPipeline" {
+    component "appsrc\nname=out, is-live" as src
+    component "videoconvert\n(RGB -> I420)" as vc2
+    component "x264enc\ntune=zerolatency" as enc
+    component "capsfilter\nvideo/x-h264 (FORTAT)" as h264
+    component "avdec_h264" as avdec
+    component "videoconvert" as vc3
+    component "autovideosink\nsync=false" as vsink
+  }
+
+  component "on_new_sample()\ninvert: octet = 255 - octet" as cb
+}
+
+cam --> v4l2 : frame brut
+v4l2 --> dec
+dec --> vc1
+vc1 --> scale
+scale --> caps
+caps --> flip
+flip --> sink
+sink --> cb : semnal "new-sample"
+cb --> src : gst_app_src_push_buffer()
+src --> vc2
+vc2 --> enc
+enc --> h264 : H264
+ h264 --> avdec
+avdec --> vc3
+vc3 --> vsink
+vsink --> screen : afisare
+
+app ..> sink : g_signal_connect("new-sample")
+app ..> src : push din callback
+app ..> v4l2 : porneste pipe_in
+app ..> vsink : porneste pipe_out
+
+note right of cb
+  Puntea dintre cele doua pipeline-uri.
+  O singura conducta cu doua lanturi
+  deconectate ar bloca in preroll.
+end note
+
+@enduml
+
+@startuml PcCamStream_Secventa
+title PcCamStream — diagrama de secventa (pornire, un cadru, oprire)
+
+actor User
+participant "main()" as main
+participant "pipe_in" as pin
+participant "v4l2src+decodebin+\nvideoconvert+videoscale+\ncapsfilter+videoflip" as pre
+participant "appsink (proc)" as sink
+participant "on_new_sample()" as cb
+participant "pipe_out" as pout
+participant "appsrc (out)" as src
+participant "videoconvert" as vc2
+participant "x264enc" as enc
+participant "capsfilter video/x-h264" as h264
+participant "avdec_h264" as avdec
+participant "autovideosink" as vsink
+
+== Pornire ==
+User -> main : ./pc-cam-stream --width=640 --height=480 --flip=horizontal
+main -> main : gst_init, parse optiuni, validari
+main -> pin : gst_parse_launch(desc_in)
+main -> pout : gst_parse_launch(desc_out)
+main -> sink : g_signal_connect("new-sample", on_new_sample)
+main -> pin : set_state(PLAYING)
+main -> pout : set_state(PLAYING)
+main -> main : g_main_loop_run()
+
+== Ciclul unui cadru (x N) ==
+pin -> pre : buffer brut de la camera
+pre -> sink : buffer RGB 640x480, scalat si flip-uit
+sink -> cb : emit "new-sample"
+cb -> cb : pull_sample, make_writable, map READWRITE
+cb -> cb : invert octet cu octet (255 - v)
+cb -> src : gst_app_src_push_buffer(buf)
+src -> vc2 : buffer RGB
+vc2 -> enc : I420
+enc -> h264 : comprima H264 (zerolatency)
+h264 -> avdec : stream video/x-h264
+avdec -> vsink : cadru decodat
+vsink -> User : afiseaza pe ecran
+
+== Oprire (Ctrl+C sau --frames=N) ==
+User -> main : SIGINT
+main -> main : g_main_loop_quit
+main -> pin : send_event(EOS)
+main -> src : gst_app_src_end_of_stream()
+src -> pout : EOS dupa golirea cozii (asteptat max 3 s)
+main -> pin : set_state(NULL)
+main -> pout : set_state(NULL)
+main -> User : "Processed N frames in T s (F fps)"
+
+@enduml
+
+@startuml PcCamStream_Clase
+title PcCamStream — diagrama de clase (structuri si functii C)
+
+skinparam classAttributeIconSize 0
+
+class App {
+  + GMainLoop *loop
+  + GstElement *pipe_in
+  + GstElement *pipe_out
+  + GstElement *appsrc
+  + GstElement *proc
+  + gint64 frames
+  + gint64 max_frames
+  + gint64 t0
+}
+
+class "main()" as main <<function>> {
+  + parseaza optiuni (GOptionContext)
+  + construieste desc_in / desc_out
+  + gst_parse_launch x2
+  + set_state(PLAYING) x2
+  + g_main_loop_run()
+  + oprire gracioasa (EOS + drain)
+}
+
+class "on_new_sample()" as cb <<callback GstAppSink>> {
+  + pull_sample()
+  + make_writable + map READWRITE
+  + invert: 255 - octet
+  + gst_app_src_push_buffer()
+}
+
+class "on_bus()" as bus <<callback GstBus>> {
+  + GST_MESSAGE_ERROR -> quit
+  + GST_MESSAGE_EOS -> quit
+}
+
+class "on_sigint()" as sig <<callback GLib>> {
+  + g_main_loop_quit()
+}
+
+class "flip_method()" as fm <<function>> {
+  + horizontal -> horizontal-flip
+  + vertical -> vertical-flip
+  + 180 -> rotate-180
+  + none -> none
+}
+
+class "watch()" as w <<function>> {
+  + gst_bus_add_watch(pipe)
+}
+
+main --> App : construieste si populeaza
+main --> cb : g_signal_connect
+main --> bus : via watch()
+main --> sig : g_unix_signal_add
+main --> fm : valideaza --flip
+App "1" o-- "1" cb
+App "1" o-- "1" bus
+
+@enduml
