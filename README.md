@@ -80,15 +80,23 @@ Ctrl+C oprește aplicația și afișează statistica (cadre procesate, timp, fps
 ├── Makefile               # build (make / make run / make test / make clean)
 ├── README.md
 ├── docs/
-│   ├── architecture.puml # sursă PlantUML (componente + secvență + clase)
-│   └── architecture.md   # aceleași diagrame în Mermaid (randate automat pe GitHub)
+│   ├── architecture.svg  # diagrama de arhitectură (imagine — se deschide oriunde)
+│   ├── sequence.svg      # diagrama de secvență (imagine)
+│   ├── architecture.txt  # aceeași arhitectură în ASCII (text brut)
+│   ├── architecture.md   # diagrame Mermaid (randate automat pe GitHub)
+│   └── architecture.puml # sursă PlantUML
 └── src/
     └── main.c             # pipeline-urile GStreamer + inversia culorilor în C
 ```
 
 ## Arhitectură (UML)
 
-Diagramele UML sunt în `docs/` — trei diagrame: **componente/flux** (cele două pipeline-uri și legătura prin callback), **secvență** (pornire → ciclul unui cadru → oprire) și **clase** (structura `App` și funcțiile C). Varianta `architecture.md` e în Mermaid și se vede direct pe GitHub; varianta `architecture.puml` e sursa PlantUML.
+Diagramele UML sunt în `docs/` — **arhitectură/componente** și **secvență**, în 4 formate:
+
+- `architecture.svg` / `sequence.svg` — imagini; le deschizi în orice browser (`xdg-open docs/architecture.svg`) și GitHub le afișează direct în repo;
+- `architecture.txt` — ASCII, text brut, îl vezi în orice editor;
+- `architecture.md` — Mermaid, randat automat de interfața GitHub;
+- `architecture.puml` — sursă PlantUML.
 
 Randare locală a variantei PlantUML:
 

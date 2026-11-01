@@ -1,0 +1,36 @@
+PcCamStream — arhitectura (text ASCII)
+========================================
+
+  [Camera /dev/video0]        [Ecran X11/Wayland]
+   (MJPEG 1280x720@30)              ^
+        | frame brut                 | afisare
+        v                            |
+  +-------------------------------------------------------------+
+  | pipe_in : GstPipeline                                       |
+  |  v4l2src -> decodebin -> videoconvert -> videoscale         |
+  |          -> capsfilter(video/x-raw,format=RGB,WxH)          |
+  |          -> videoflip(horizontal-flip) -> appsink(proc)     |
+  +------------------------------+------------------------------+
+                                 | semnal "new-sample"
+                                 v
+                    +---------------------------+
+                    | on_new_sample() (callback)|
+                    | invert: octet = 255-octet |
+                    | gst_app_src_push_buffer() |
+                    +---------------------------+
+                                 | cadrul inversat
+                                 v
+  +-------------------------------------------------------------+
+  | pipe_out : GstPipeline                                      |
+  |  appsrc(out) -> videoconvert -> x264enc(zerolatency)        |
+  |      -> capsfilter(video/x-h264, byte-stream) [FORTAT]      |
+  |      -> avdec_h264 -> videoconvert -> autovideosink         |
+  +-------------------------------------------------------------+
+
+  De ce 2 pipeline-uri: intr-o singura conducta, ramura appsrc nu produce
+  buffer pana nu e alimentata din callback, iar preroll-ul asteapta buffer
+  de la TOATE sink-urile -> deadlock. Doua pipeline-uri rezolva asta.
+
+  Structuri C (src/main.c): App{loop, pipe_in, pipe_out, appsrc, proc,
+  frames, max_frames, t0}; functii: main, on_new_sample, on_bus, on_sigint,
+  flip_method, watch.
