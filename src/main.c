@@ -37,8 +37,7 @@ typedef struct {
 static const gchar *
 flip_method(const gchar *name)
 {
-  // if (g_strcmp0(name, "horizontal") == 0) return "horizontal-flip";
-  if (g_strcmp0(name, "horizontal") == 0) return "none";
+  if (g_strcmp0(name, "horizontal") == 0) return "horizontal-flip";
   if (g_strcmp0(name, "vertical") == 0)   return "vertical-flip";
   if (g_strcmp0(name, "180") == 0)        return "rotate-180";
   if (g_strcmp0(name, "none") == 0)       return "none";
@@ -125,7 +124,7 @@ main(int argc, char **argv)
 
   gchar *device = g_strdup("/dev/video0");
   gchar *sink   = g_strdup("autovideosink");
-  gchar *flip   = g_strdup("none");
+  gchar *flip   = g_strdup("horizontal");
   gint width = 640, height = 480, bitrate = 800;
   gint64 max_frames = 0;
   gboolean test = FALSE;
